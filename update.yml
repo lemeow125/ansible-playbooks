@@ -8,5 +8,7 @@
         update_cache: true
         autoremove: true
         state: latest
+      when: ansible_distribution in ["Debian", "Ubuntu"]
     - name: Update ACME
       command: /root/.acme.sh/acme.sh --upgrade --auto-upgrade
+      when: ansible_distribution in ["Debian", "Ubuntu"]

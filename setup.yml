@@ -3,18 +3,19 @@
   # Runs on root user already
   become: false
   tasks:
-    - name: Add SSH key to authorized_hosts
+    - name: Add SSH key to authorized_hosts - Debian/Ubuntu
       authorized_key:
         user: root
         state: present
         key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
         path: /root/.ssh/authorized_keys
+      when: ansible_distribution in ["Debian", "Ubuntu"]
     - name: Update all packages
       apt:
         update_cache: true
         autoremove: true
         state: latest
-    - name: Install packages
+    - name: Install packages - Debian/Ubuntu
       apt:
         name:
           - vim
@@ -27,8 +28,10 @@
           - neofetch
           - cifs-utils
           - curl
+        # Cache is already updated from previous step
         update_cache: false
         autoremove: true
         state: latest
+      when: ansible_distribution in ["Debian", "Ubuntu"]
     - name: Install ACME
       command: curl https://get.acme.sh | sh -s email=noehbernasol0@gmail.com
