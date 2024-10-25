@@ -27,6 +27,7 @@
           - docker-compose
           - neofetch
           - cifs-utils
+          - borgbackup
           - curl
         # Cache is already updated from previous step
         update_cache: false
