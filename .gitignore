@@ -167,4 +167,4 @@ cython_debug/
 
 **/__pycache__/
 
-.vscode/
+.vscode/**/*
