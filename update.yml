@@ -1,5 +1,7 @@
 ---
-- hosts: all
+- hosts:
+    - debian
+    - ubuntu
   # Runs on root user already
   become: false
   tasks:
