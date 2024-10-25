@@ -30,6 +30,5 @@
         update_cache: false
         autoremove: true
         state: latest
-
     - name: Install ACME
       command: curl https://get.acme.sh | sh -s email=noehbernasol0@gmail.com
