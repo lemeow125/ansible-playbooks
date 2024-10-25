@@ -1,7 +1,6 @@
 ---
 - hosts:
     - debian
-    - ubuntu
   # Runs on root user already
   become: false
   tasks:
@@ -10,7 +9,6 @@
         update_cache: true
         autoremove: true
         state: latest
-      when: ansible_distribution in ["Debian", "Ubuntu"]
+      when: ansible_distribution in ["Debian"]
     - name: Update ACME
       command: /root/.acme.sh/acme.sh --upgrade --auto-upgrade
-      when: ansible_distribution in ["Debian", "Ubuntu"]

@@ -3,7 +3,10 @@
   "yaml.schemas": {
     "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible.json#/$defs/playbook": [
       "file:///e%3A/Projects/AnsibleTest/setup.yml",
-      "file:///e%3A/Projects/AnsibleTest/update.yml"
-    ]
+      "file:///e%3A/Projects/AnsibleTest/update.yml",
+      "file:///e%3A/Projects/ansible-playbooks/roles/tasks/update.yml",
+      "file:///e%3A/Projects/ansible-playbooks/roles/tasks/setup.yml"
+    ],
+    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/requirements.json": "file:///e%3A/Projects/ansible-playbooks/requirements.yml"
   }
 }
