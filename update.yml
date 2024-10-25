@@ -1,0 +1,12 @@
+---
+- hosts: all
+  # Runs on root user already
+  become: false
+  tasks:
+    - name: Update all packages
+      apt:
+        update_cache: true
+        autoremove: true
+        state: latest
+    - name: Update ACME
+      command: /root/.acme.sh/acme.sh --upgrade --auto-upgrade

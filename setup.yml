@@ -1,0 +1,35 @@
+---
+- hosts: all
+  # Runs on root user already
+  become: false
+  tasks:
+    - name: Add SSH key to authorized_hosts
+      authorized_key:
+        user: root
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+        path: /root/.ssh/authorized_keys
+    - name: Update all packages
+      apt:
+        update_cache: true
+        autoremove: true
+        state: latest
+    - name: Install packages
+      apt:
+        name:
+          - vim
+          - nginx
+          - htop
+          - tmux
+          - samba
+          - docker
+          - docker-compose
+          - neofetch
+          - cifs-utils
+          - curl
+        update_cache: false
+        autoremove: true
+        state: latest
+
+    - name: Install ACME
+      command: curl https://get.acme.sh | sh -s email=noehbernasol0@gmail.com
