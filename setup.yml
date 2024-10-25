@@ -31,6 +31,9 @@
           - cifs-utils
           - borgbackup
           - curl
+          - syncthing
+          - socat
+          - fish
         # Cache is already updated from previous step
         update_cache: false
         autoremove: true

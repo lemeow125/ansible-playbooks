@@ -9,6 +9,8 @@ To install the Ansible playbook, follow these steps:
 1. Clone this repository
 2. Install Ansible on your system if you haven't already: `sudo apt-get install ansible`
 3. Move into the repository directory: `cd /path/to/ansible-playbooks`
+4. Navigate to the repository directory: `cd /path/to/ansible-playbooks`
+5. Install required Ansible Galaxy roles using Ansible Galaxy: `ansible-galaxy install -r requirements.yml`
 
 ## Usage
 

@@ -1,0 +1,3 @@
+- src: https://github.com/gekmihesg/ansible-openwrt.git
+  scm: git
+  version: master
