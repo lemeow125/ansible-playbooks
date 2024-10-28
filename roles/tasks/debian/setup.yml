@@ -56,6 +56,8 @@
       shell: curl https://get.acme.sh | sh -s email="{{ ACME_EMAIL }}"
     - name: Enable Syncthing Service
       command: systemctl enable syncthing@root.service
+    - name: Start Syncthing Service
+      command: systemctl start syncthing@root.service
     - name: Allow Syncthing Remote Management
       replace:
         path: /root/.config/syncthing/config.xml
