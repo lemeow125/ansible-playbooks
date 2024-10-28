@@ -49,7 +49,7 @@ function backup() {
 docker_projects="/mnt/nvme/files/docker projects/"
 
 # Sample Entry
-backup "sample" "$docker_projects/sample_project"
+backup "sample" "$docker_projects/sample_project" '--exclude "*.tmp" 
 
 ## Non-Docker Directories
 

@@ -20,9 +20,9 @@ This will elevate to `root` user via `sudo` and set up root SSH access through t
 
 6. Provide project directories to spin up on boot through `start_services.sh`.
 
-7. Provide the same project directories to back up via Borg in `backup.sh`.
+7. Provide the same project directories to back up via Borg in `backup.sh` including any file/folder exemptions.
 
-8. Update the Samba credentials file located at `/root/.samba`.
+8. Update the Samba credentials file located at `/root/.samba/credentials`.
 
 ```
 # credentials
