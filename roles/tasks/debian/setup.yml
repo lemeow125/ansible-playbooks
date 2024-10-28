@@ -1,8 +1,8 @@
 ---
 - hosts:
     - debian
-  # Runs on root user already
-  become: false
+  become: true
+  vars_files: "{{ playbook_dir | dirname | dirname | dirname }}/inventory/group_vars/debian.yml"
   tasks:
     - name: Add SSH key to authorized_hosts - Debian
       authorized_key:
@@ -10,11 +10,27 @@
         state: present
         key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
         path: /root/.ssh/authorized_keys
+    - name: Enable Root Login
+      lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: "^PermitRootLogin"
+        line: "PermitRootLogin yes"
+        state: present
+      notify: Restart SSHD on Config Change
     - name: Update all packages
       apt:
         update_cache: true
         autoremove: true
         state: latest
+    - name: Install Docker
+      apt:
+        name:
+          - docker
+        update_cache: false
+        autoremove: true
+        state: latest
+      # Safety net if this script is ran twice
+      notify: Restart Docker Containers
     - name: Install packages - Debian
       apt:
         name:
@@ -23,7 +39,6 @@
           - htop
           - tmux
           - samba
-          - docker
           - docker-compose
           - neofetch
           - cifs-utils
@@ -32,9 +47,47 @@
           - syncthing
           - socat
           - fish
+          - iperf3
         # Cache is already updated from previous step
         update_cache: false
         autoremove: true
         state: latest
     - name: Install ACME
-      command: curl https://get.acme.sh | sh -s email=noehbernasol0@gmail.com
+      shell: curl https://get.acme.sh | sh -s email="{{ ACME_EMAIL }}"
+    - name: Enable Syncthing Service
+      command: systemctl enable syncthing@root.service
+    - name: Allow Syncthing Remote Management
+      replace:
+        path: /root/.config/syncthing/config.xml
+        regexp: "<address>127.0.0.1:8384</address>"
+        replace: "<address>0.0.0.0:8384</address>"
+      notify: Restart Syncthing Service
+    - name: Copy Template Scripts
+      copy:
+        src: "{{ playbook_dir | dirname | dirname }}/files/debian/setup/scripts/"
+        dest: /root/scripts/
+        mode: "0644"
+        force: false
+    - name: Copy Crontab Template
+      copy:
+        src: "{{ playbook_dir | dirname | dirname }}/files/debian/setup/crontabs/"
+        dest: /var/spool/cron/crontabs/
+        mode: "0600"
+        force: false
+    - name: Copy Samba Credentials Template
+      copy:
+        src: "{{ playbook_dir | dirname | dirname }}/files/debian/setup/samba/"
+        dest: /root/.samba/
+        mode: "0644"
+        force: false
+
+  handlers:
+    # Restart Syncthing on Config Change
+    - name: Restart Syncthing Service
+      command: systemctl restart syncthing@root.service
+    # Restart SSHD on Config Change
+    - name: Restart SSHD on Config Change
+      command: systemctl restart sshd
+    # Restart Docker Containers on Docker Update
+    - name: Restart Docker Containers
+      command: bash /root/scripts/start_services.sh

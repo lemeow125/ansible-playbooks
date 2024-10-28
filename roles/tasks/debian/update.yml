@@ -4,10 +4,23 @@
   # Runs on root user already
   become: false
   tasks:
+    - name: Update Docker
+      apt:
+        name:
+          - docker
+        update_cache: true
+        autoremove: true
+        state: latest
+      notify: Restart Docker Containers
     - name: Update all packages
       apt:
-        update_cache: true
+        update_cache: false
         autoremove: true
         state: latest
     - name: Update ACME
       command: /root/.acme.sh/acme.sh --upgrade --auto-upgrade
+
+  handlers:
+    # Restart Docker Containers on Docker Update
+    - name: Restart Docker Containers
+      command: bash /root/scripts/start_services.sh

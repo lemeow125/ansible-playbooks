@@ -4,5 +4,5 @@
   # Runs on root user already
   become: false
   tasks:
-    - name: Restart all services
+    - name: Start all services
       command: bash /root/scripts/start_services.sh

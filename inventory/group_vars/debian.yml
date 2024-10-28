@@ -1,1 +1,2 @@
 # Debian-specific variables go here
+ACME_EMAIL: noehbernasol0@gmail.com

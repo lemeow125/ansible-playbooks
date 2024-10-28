@@ -1,0 +1,22 @@
+# VIM Default Editor
+@reboot export VISUAL=vim
+@reboot export EDITOR=vim
+
+# Fix tmux bug
+@reboot tmux
+
+# Network mount
+* * * * * mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups/" -o credentials="/root/.samba/credentials"
+
+# Start services
+@reboot sleep 30 && tmux new-session -d -s "start_services" "bash /root/scripts/start_services.sh"
+
+# Backups
+0 */4 * * * tmux new-session -d -s "Borg Backups" bash /root/scripts/backup.sh
+
+# Docker Cleanup
+0 0 1 * *  docker system prune --all --volumes --force
+
+# ACME
+52 0 * * * "/root/.acme.sh"/acme.sh --cron --home "/root/.acme.sh" > /dev/null
+0 */7 * * * tmux new-session -d -s "Acme SSL Updater" bash /root/scripts/acme_ssl.sh
