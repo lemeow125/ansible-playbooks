@@ -23,4 +23,4 @@
   handlers:
     # Restart Docker Containers on Docker Update
     - name: Restart Docker Containers
-      command: bash /root/scripts/start_services.sh
+      command: tmux new-session -d -s "start_services" "bash /root/scripts/start_services.sh"
