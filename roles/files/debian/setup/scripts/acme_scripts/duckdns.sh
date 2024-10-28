@@ -4,7 +4,6 @@
 source ".env"
 
 /root/.acme.sh/acme.sh --upgrade --auto-upgrade
-/root/.acme.sh/acme.sh --register-account -m noehbernasol0@gmail.com
 
 # Array of main domains
 domains=("*.keannu1.duckdns.org" "keannu1.duckdns.org")
