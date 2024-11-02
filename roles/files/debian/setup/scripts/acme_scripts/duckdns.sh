@@ -3,6 +3,8 @@
 # Read DuckDNS_Token and ACME_Email from .env
 source ".env"
 
+export DuckDNS_Token "$DuckDNS_Token"
+
 /root/.acme.sh/acme.sh --upgrade --auto-upgrade
 
 # Array of main domains

@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Read CF_Token and ACME_Email from .env
+# Read CF_Token from .env
 source ".env"
+
+export CF_Token "$CF_Token"
 
 /root/.acme.sh/acme.sh --upgrade --auto-upgrade
 

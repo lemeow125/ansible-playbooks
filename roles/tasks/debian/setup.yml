@@ -44,6 +44,7 @@
           - cifs-utils
           - borgbackup
           - curl
+          - wget
           - syncthing
           - socat
           - fish
