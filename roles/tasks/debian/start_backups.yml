@@ -1,0 +1,8 @@
+---
+- hosts:
+    - debian
+  # Runs on root user already
+  become: false
+  tasks:
+    - name: Start Backups
+      command: tmux new-session -d -s "Borg Backups" "bash /root/scripts/backup.sh"
