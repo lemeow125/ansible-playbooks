@@ -5,4 +5,4 @@
   become: false
   tasks:
     - name: Start All Services
-      command: tmux new-session -d -s "start_services" "bash /root/scripts/start_services.sh"
+      command: bash "/root/scripts/start_services.sh"

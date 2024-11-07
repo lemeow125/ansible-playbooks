@@ -49,6 +49,7 @@
           - socat
           - fish
           - iperf3
+          - resolvconf
         # Cache is already updated from previous step
         update_cache: false
         autoremove: true
@@ -93,4 +94,4 @@
       command: systemctl restart sshd
     # Restart Docker Containers on Docker Update
     - name: Restart Docker Containers
-      command: tmux new-session -d -s "start_services" "bash /root/scripts/start_services.sh"
+      command: bash "/root/scripts/start_services.sh"

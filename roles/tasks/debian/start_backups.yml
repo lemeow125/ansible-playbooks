@@ -5,4 +5,4 @@
   become: false
   tasks:
     - name: Start Backups
-      command: tmux new-session -d -s "Borg Backups" "bash /root/scripts/backup.sh"
+      command: bash "/root/scripts/backup.sh"
