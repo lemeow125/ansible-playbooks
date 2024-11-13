@@ -6,7 +6,7 @@
 @reboot tmux
 
 # Network mount
-* * * * * mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups/" -o credentials="/root/.samba/credentials"
+* * * * * sudo mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups/" -o credentials="/root/.samba/credentials"
 
 # Start services
 @reboot sleep 30 && tmux new-session -d -s "start_services" "bash /root/scripts/start_services.sh"
