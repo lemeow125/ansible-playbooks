@@ -12,11 +12,11 @@
 @reboot sleep 30 && tmux new-session -d -s "start_services" "bash /root/scripts/start_services.sh"
 
 # Backups
-0 */4 * * * tmux new-session -d -s "Borg Backups" bash /root/scripts/backup.sh
+0 */4 * * * tmux new-session -d -s "Borg Backups" "bash /root/scripts/backup.sh"
 
 # Docker Cleanup
 0 0 1 * *  docker system prune --all --volumes --force
 
 # ACME
 52 0 * * * "/root/.acme.sh"/acme.sh --cron --home "/root/.acme.sh" > /dev/null
-0 */7 * * * tmux new-session -d -s "Acme SSL Updater" bash /root/scripts/acme_ssl.sh
+0 */7 * * * tmux new-session -d -s "Acme SSL Updater" "bash /root/scripts/acme_ssl.sh"
