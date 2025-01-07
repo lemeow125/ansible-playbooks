@@ -2,12 +2,13 @@
 # Hyper-V Test Nodes
 # 172.22.90.75 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
 # Bare Metal Nodes
-10.0.10.4 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
-10.0.10.141 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
-10.0.10.64 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
+10.0.10.169 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
+# 10.0.10.4 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
+# 10.0.10.141 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
+# 10.0.10.64 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
 
 [openwrt]
-10.0.10.1
 # Not enough storage space for these devices to support Ansible
+# 10.0.10.1
 # 10.0.10.2
 # 10.0.10.3

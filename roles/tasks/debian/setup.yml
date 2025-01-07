@@ -4,12 +4,18 @@
   become: true
   vars_files: "{{ playbook_dir | dirname | dirname | dirname }}/inventory/group_vars/debian.yml"
   tasks:
+    # Ensure SSH directory exists
+    - name: Ensure SSH directory exists
+      file:
+        path: ~/.ssh/
+        state: directory
+        mode: "0700"
     - name: Add SSH key to authorized_hosts - Debian
       authorized_key:
         user: root
         state: present
         key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
-        path: /root/.ssh/authorized_keys
+        path: ~/.ssh/authorized_keys
     - name: Enable Root Login
       lineinfile:
         dest: /etc/ssh/sshd_config
@@ -49,7 +55,7 @@
           - socat
           - fish
           - iperf3
-          - resolvconf
+          - dnsmasq
         # Cache is already updated from previous step
         update_cache: false
         autoremove: true
