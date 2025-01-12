@@ -6,8 +6,7 @@
   tasks:
     - name: Update Docker
       apt:
-        name:
-          - docker
+        name: docker
         update_cache: true
         autoremove: true
         state: latest
