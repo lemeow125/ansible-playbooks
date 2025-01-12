@@ -10,7 +10,6 @@
         update_cache: true
         autoremove: true
         state: latest
-      notify: Restart Docker Containers
     - name: Update all packages
       apt:
         name: "*"
@@ -19,8 +18,5 @@
         state: latest
     - name: Update ACME
       command: /root/.acme.sh/acme.sh --upgrade --auto-upgrade
-
-  handlers:
-    # Restart Docker Containers on Docker Update
-    - name: Restart Docker Containers
+    - name: Restart All Services
       command: bash "/root/scripts/start_services.sh"
