@@ -14,6 +14,7 @@
       notify: Restart Docker Containers
     - name: Update all packages
       apt:
+        name: "*"
         update_cache: false
         autoremove: true
         state: latest
