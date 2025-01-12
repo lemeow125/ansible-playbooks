@@ -62,6 +62,11 @@
         state: latest
     - name: Install ACME
       shell: curl https://get.acme.sh | sh -s email="{{ ACME_EMAIL }}"
+    - name: Ensure ACME directory exists
+      file:
+        path: ~/.acme.sh/.ssh/
+        state: directory
+        mode: "0700"
     - name: Enable Syncthing Service
       command: systemctl enable syncthing@root.service
     - name: Start Syncthing Service
