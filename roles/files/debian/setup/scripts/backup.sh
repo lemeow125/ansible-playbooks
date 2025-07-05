@@ -2,46 +2,72 @@
 
 current_date=$(date "+%B %-d %Y%l:%M %p")
 
-env BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes
-env BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
+# Export Borg environment variables
+export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes
+export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
 
 echo "Timestamp: $current_date"
 
-# Check if the required mount point exists
-if ! df -h | grep -q "^//255\.255\.255\.255/SAMBA-MOUNT.*\/mnt/backups$"; then
-    echo "Error: Required mount point //255.255.255.255/SAMBA-MOUNT not found or not mounted at /mnt/backups."
-    exit 1
-fi
+# Define required mount points as key-value pairs (remote:local)
+declare -A mount_points=(
+    ["//10.0.10.169/pc-2"]="/mnt/backups_a"
+    ["//10.0.10.115/pc-2"]="/mnt/backups_b"
+)
 
-function backup() {
-	# $1 - Backup Name
-	# $2 - Directory
-	# $3 - Extras
-	
-	if [ "$1" == "" ] || [ "$2" == "" ]; then
-		echo "Missing arguments!"
-		exit
-	fi
-	
-	# Root backup directory
-	root_directory="/mnt/backups/"
-
-	echo "Starting backups for: $1"
-	
-	# Check if the backup directory exists
-	if [ ! -d "$root_directory/$1" ]; then
-		echo "Backup directory does not exist for $1. Initializing one"
-		borg init --encryption=none "$root_directory/$1"
-	else
-		echo "Backup directory already exists for $1"
-	fi
-	
-	borg create --stats --progress --compression lz4 "$root_directory/$1"::"$current_date" "$2" $3
-	echo "Cleaning old backups"
-	borg prune --stats "$root_directory/$1" -d 6
-	borg compact "$root_directory/$1"
-	echo "Backup for $1 finished"
+# Function to check if a mount point is mounted
+is_mounted() {
+    local remote="$1"
+    local local_path="$2"
+    if ! findmnt --target "$local_path" --source "$remote" &>/dev/null; then
+        echo "Error: $remote not mounted at $local_path"
+        return 1
+    fi
+    return 0
 }
+
+# Verify all required mount points
+for remote in "${!mount_points[@]}"; do
+    local_path="${mount_points[$remote]}"
+    if ! is_mounted "$remote" "$local_path"; then
+        exit 1
+    fi
+done
+
+# Backup function
+function backup() {
+    [[ -z "$1" || -z "$2" ]] && { echo "Missing arguments!"; exit 1; }
+
+    local backup_name="$1"
+    local source_dir="$2"
+    shift 2
+    local extras=("$@")
+    
+    # Iterate through all mount points
+    for local_mount in "${mount_points[@]}"; do
+        local repo_path="${local_mount}/${backup_name}"
+        
+        echo "Starting backups for '$backup_name' at $local_mount"
+        
+        # Initialize repository if missing
+        if [[ ! -d "$repo_path" ]]; then
+            echo "Initializing new repository: $repo_path"
+            borg init --encryption=none "$repo_path"
+        fi
+
+        # Perform backup
+        echo "Backing up $source_dir to $repo_path"
+        borg create --stats --progress --compression lz4 "$repo_path"::"$current_date" \
+            "$source_dir" "${extras[@]}"
+        
+        # Cleanup old backups
+        echo "Cleaning old backups at $repo_path"
+        borg prune --stats "$repo_path" -d 6
+        borg compact "$repo_path"
+        
+        echo "Backup for '$backup_name' completed at $local_mount"
+    done
+}
+
 
 ## Docker Projects
 
