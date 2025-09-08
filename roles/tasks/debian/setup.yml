@@ -95,6 +95,16 @@
         dest: /root/.samba/
         mode: "0644"
         force: false
+    - name: Ensure mount directory for backups_a exists
+      file:
+        path: /mnt/backups_a/
+        state: directory
+        mode: "0700"
+    - name: Ensure mount directory for backups_b exists
+      file:
+        path: /mnt/backups_b/
+        state: directory
+        mode: "0700"
 
   handlers:
     # Restart Syncthing on Config Change
