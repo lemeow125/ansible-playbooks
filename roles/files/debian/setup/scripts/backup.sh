@@ -54,79 +54,83 @@ function backup() {
     shift 2
     local extras=("$@")
 
-    # Iterate through all mount points
+    # Iterate through all mount points in parallel
     for local_mount in "${mount_points[@]}"; do
-        local repo_path="${local_mount}/${backup_name}"
-        local stderr_file
+        (
+            local repo_path="${local_mount}/${backup_name}"
+            local stderr_file
 
-        # Create a unique temp file for stderr capture
-        stderr_file=$(mktemp)
-        if [[ ! -f "$stderr_file" ]]; then
-            echo "ERROR: Failed to create temp file for stderr capture" >&2
-            continue
-        fi
+            # Create a unique temp file for stderr capture
+            stderr_file=$(mktemp)
+            if [[ ! -f "$stderr_file" ]]; then
+                echo "ERROR: Failed to create temp file for stderr capture" >&2
+                exit 1
+            fi
 
-        echo "Starting backups for '$backup_name' at $local_mount"
+            echo "Starting backups for '$backup_name' at $local_mount"
 
-        # Initialize repository if missing
-        if [[ ! -d "$repo_path" ]]; then
-            echo "Initializing new repository: $repo_path"
-            borg init --encryption=none "$repo_path" 2> >(tee "$stderr_file" >&2)
+            # Initialize repository if missing
+            if [[ ! -d "$repo_path" ]]; then
+                echo "Initializing new repository: $repo_path"
+                borg init --encryption=none "$repo_path" 2> >(tee "$stderr_file" >&2)
+                if [[ $? -ne 0 ]]; then
+                    echo "ERROR: borg init failed for $repo_path" >&2
+                    error_content=$(cat "$stderr_file")
+                    curl -s -H "Title: [$device_name] Init failed for $backup_name on $local_mount" -H "Priority: high" \
+                        -d "$error_content" \
+                        "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+                    rm -f "$stderr_file"
+                    exit 1
+                fi
+            fi
+
+            # Perform backup
+            echo "Backing up $source_dir to $repo_path"
+            borg create --stats --progress --compression lz4 "$repo_path"::"$current_date" \
+                "$source_dir" "${extras[@]}" 2> >(tee "$stderr_file" >&2)
             if [[ $? -ne 0 ]]; then
-                echo "ERROR: borg init failed for $repo_path" >&2
+                echo "ERROR: borg create failed for $repo_path" >&2
                 error_content=$(cat "$stderr_file")
-                curl -s -H "Title: [$device_name] Init failed for $backup_name on $local_mount" -H "Priority: high" \
+                curl -s -H "Title: [$device_name] Create failed for $backup_name on $local_mount" -H "Priority: high" \
                     -d "$error_content" \
                     "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
                 rm -f "$stderr_file"
-                continue
+                exit 1
             fi
-        fi
 
-        # Perform backup
-        echo "Backing up $source_dir to $repo_path"
-        borg create --stats --progress --compression lz4 "$repo_path"::"$current_date" \
-            "$source_dir" "${extras[@]}" 2> >(tee "$stderr_file" >&2)
-        if [[ $? -ne 0 ]]; then
-            echo "ERROR: borg create failed for $repo_path" >&2
-            error_content=$(cat "$stderr_file")
-            curl -s -H "Title: [$device_name] Create failed for $backup_name on $local_mount" -H "Priority: high" \
-                -d "$error_content" \
-                "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+            # Cleanup old backups
+            echo "Cleaning old backups at $repo_path"
+            borg prune --stats "$repo_path" -d 6 2> >(tee "$stderr_file" >&2)
+            if [[ $? -ne 0 ]]; then
+                echo "ERROR: borg prune failed for $repo_path" >&2
+                error_content=$(cat "$stderr_file")
+                curl -s -H "Title: [$device_name] Prune failed for $backup_name on $local_mount" -H "Priority: high" \
+                    -d "$error_content" \
+                    "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+                rm -f "$stderr_file"
+                exit 1
+            fi
+
+            borg compact "$repo_path" 2> >(tee "$stderr_file" >&2)
+            if [[ $? -ne 0 ]]; then
+                echo "ERROR: borg compact failed for $repo_path" >&2
+                error_content=$(cat "$stderr_file")
+                curl -s -H "Title: [$device_name] Compact failed for $backup_name on $local_mount" -H "Priority: high" \
+                    -d "$error_content" \
+                    "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+                rm -f "$stderr_file"
+                exit 1
+            fi
+
+            # All commands succeeded – clean up temp file
             rm -f "$stderr_file"
-            continue
-        fi
-
-        # Cleanup old backups
-        echo "Cleaning old backups at $repo_path"
-        borg prune --stats "$repo_path" -d 6 2> >(tee "$stderr_file" >&2)
-        if [[ $? -ne 0 ]]; then
-            echo "ERROR: borg prune failed for $repo_path" >&2
-            error_content=$(cat "$stderr_file")
-            curl -s -H "Title: [$device_name] Prune failed for $backup_name on $local_mount" -H "Priority: high" \
-                -d "$error_content" \
-                "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
-            rm -f "$stderr_file"
-            continue
-        fi
-
-        borg compact "$repo_path" 2> >(tee "$stderr_file" >&2)
-        if [[ $? -ne 0 ]]; then
-            echo "ERROR: borg compact failed for $repo_path" >&2
-            error_content=$(cat "$stderr_file")
-            curl -s -H "Title: [$device_name] Compact failed for $backup_name on $local_mount" -H "Priority: high" \
-                -d "$error_content" \
-                "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
-            rm -f "$stderr_file"
-            continue
-        fi
-
-        # All commands succeeded – clean up temp file
-        rm -f "$stderr_file"
-        echo "Backup for '$backup_name' completed at $local_mount"
+            echo "Backup for '$backup_name' completed at $local_mount"
+        ) &
     done
-}
 
+    # Wait for all parallel jobs to finish
+    wait
+}
 ## Docker Projects
 
 ## Root Docker Projects Directory
