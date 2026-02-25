@@ -132,7 +132,7 @@ function backup() {
 docker_projects="/mnt/nvme/files/docker projects"
 
 # Sample Entry
-# backup "sample" "$docker_projects/sample_project" '--exclude "*.tmp"'
+# backup "sample" "$docker_projects/sample_project"
 
 ## Non-Docker Directories
 
@@ -140,16 +140,16 @@ docker_projects="/mnt/nvme/files/docker projects"
 backup "bash-scripts" "/root/scripts"
 
 # ACME
-backup "acme" "/root/.acme.sh" '--exclude "*.tmp"'
+backup "acme" "/root/.acme.sh"
 
 # Crontab
 backup "cron" "/var/spool/cron/crontabs"
 
 # Nginx
-backup "nginx" "/etc/nginx" '--exclude "*.tmp"'
+backup "nginx" "/etc/nginx"
 
 # Syncthing
-backup "syncthing" "/root/.config/syncthing" '--exclude "*.tmp"'
+backup "syncthing" "/root/.config/syncthing"
 
 # Samba
 backup "samba" "/etc/samba"
