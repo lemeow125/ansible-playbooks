@@ -23,6 +23,9 @@ is_mounted() {
     local local_path="$2"
     if ! findmnt --target "$local_path" --source "$remote" &>/dev/null; then
         echo "Error: $remote not mounted at $local_path"
+        curl -s -H "Title: [$device_name] Backup Error" -H "Priority: high" \
+            -d "$remote not mounted at $local_path $(date)" \
+            "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
         return 1
     fi
     return 0
