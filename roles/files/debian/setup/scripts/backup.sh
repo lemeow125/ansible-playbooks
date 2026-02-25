@@ -75,6 +75,7 @@ function backup() {
                 borg init --encryption=none "$repo_path" 2> >(tee "$stderr_file" >&2)
                 if [[ $? -ne 0 ]]; then
                     echo "ERROR: borg init failed for $repo_path" >&2
+                    cat "$stderr_file" >&2   # <-- surface captured error details
                     error_content=$(cat "$stderr_file")
                     curl -s -H "Title: [$device_name] Init failed for $backup_name on $local_mount" -H "Priority: high" \
                         -d "$error_content" \
@@ -90,6 +91,7 @@ function backup() {
                 "$source_dir" "${extras[@]}" 2> >(tee "$stderr_file" >&2)
             if [[ $? -ne 0 ]]; then
                 echo "ERROR: borg create failed for $repo_path" >&2
+                cat "$stderr_file" >&2
                 error_content=$(cat "$stderr_file")
                 curl -s -H "Title: [$device_name] Create failed for $backup_name on $local_mount" -H "Priority: high" \
                     -d "$error_content" \
@@ -103,6 +105,7 @@ function backup() {
             borg prune --stats "$repo_path" -d 6 2> >(tee "$stderr_file" >&2)
             if [[ $? -ne 0 ]]; then
                 echo "ERROR: borg prune failed for $repo_path" >&2
+                cat "$stderr_file" >&2
                 error_content=$(cat "$stderr_file")
                 curl -s -H "Title: [$device_name] Prune failed for $backup_name on $local_mount" -H "Priority: high" \
                     -d "$error_content" \
@@ -114,6 +117,7 @@ function backup() {
             borg compact "$repo_path" 2> >(tee "$stderr_file" >&2)
             if [[ $? -ne 0 ]]; then
                 echo "ERROR: borg compact failed for $repo_path" >&2
+                cat "$stderr_file" >&2
                 error_content=$(cat "$stderr_file")
                 curl -s -H "Title: [$device_name] Compact failed for $backup_name on $local_mount" -H "Priority: high" \
                     -d "$error_content" \
@@ -131,6 +135,7 @@ function backup() {
     # Wait for all parallel jobs to finish
     wait
 }
+
 ## Docker Projects
 
 ## Root Docker Projects Directory
