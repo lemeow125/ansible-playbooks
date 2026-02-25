@@ -5,6 +5,9 @@ current_date=$(date "+%B %-d %Y%l:%M %p")
 # Export Borg environment variables
 export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes
 export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
+# export DEVICE_NAME="CHANGE-ME" # Set if device does not support hostname usage
+export ntfy_server="https://ntfy.06222001.xyz"
+export ntfy_topic="CHANGE-ME"
 
 echo "Timestamp: $current_date"
 
@@ -37,9 +40,10 @@ function backup() {
     # Validate arguments BEFORE shifting
     [[ -z "$1" || -z "$2" ]] && {
         echo "Missing arguments!" >&2
-        curl -s -H "Title: Backup Error" -H "Priority: high" \
+        local device_name="${DEVICE_NAME:-$(hostname)}"
+        curl -s -H "Title: [$device_name] Backup Error" -H "Priority: high" \
             -d "Missing arguments for backup function at $(date)" \
-            "https://ntfy.06222001.xyz/paKUX26y8P5nC8K2" >/dev/null 2>&1
+            "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
         exit 1
     }
 
@@ -47,16 +51,19 @@ function backup() {
     local source_dir="$2"
     shift 2
     local extras=("$@")
-    local ntfy_server="https://ntfy.06222001.xyz"
-    local ntfy_topic="CHANGE-ME"
+    local device_name="${DEVICE_NAME:-$(hostname)}"
 
     # Iterate through all mount points
     for local_mount in "${mount_points[@]}"; do
         local repo_path="${local_mount}/${backup_name}"
         local stderr_file
+
+        # Create a unique temp file for stderr capture
         stderr_file=$(mktemp)
-        # Ensure temp file is removed when the loop iteration ends or function returns
-        trap 'rm -f "$stderr_file"' RETURN
+        if [[ ! -f "$stderr_file" ]]; then
+            echo "ERROR: Failed to create temp file for stderr capture" >&2
+            continue
+        fi
 
         echo "Starting backups for '$backup_name' at $local_mount"
 
@@ -66,9 +73,11 @@ function backup() {
             borg init --encryption=none "$repo_path" 2> >(tee "$stderr_file" >&2)
             if [[ $? -ne 0 ]]; then
                 echo "ERROR: borg init failed for $repo_path" >&2
-                curl -s -H "Title: Backup Error" -H "Priority: high" \
-                    --data-binary "@$stderr_file" \
-                    "$ntfy_server/$ntfy_topic?title=Init+failed+for+${backup_name}+on+${local_mount}&filename=error.log" >/dev/null 2>&1
+                error_content=$(cat "$stderr_file")
+                curl -s -H "Title: [$device_name] Init failed for $backup_name on $local_mount" -H "Priority: high" \
+                    -d "$error_content" \
+                    "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+                rm -f "$stderr_file"
                 continue
             fi
         fi
@@ -79,9 +88,11 @@ function backup() {
             "$source_dir" "${extras[@]}" 2> >(tee "$stderr_file" >&2)
         if [[ $? -ne 0 ]]; then
             echo "ERROR: borg create failed for $repo_path" >&2
-            curl -s -H "Title: Backup Error" -H "Priority: high" \
-                --data-binary "@$stderr_file" \
-                "$ntfy_server/$ntfy_topic?title=Create+failed+for+${backup_name}+on+${local_mount}&filename=error.log" >/dev/null 2>&1
+            error_content=$(cat "$stderr_file")
+            curl -s -H "Title: [$device_name] Create failed for $backup_name on $local_mount" -H "Priority: high" \
+                -d "$error_content" \
+                "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+            rm -f "$stderr_file"
             continue
         fi
 
@@ -90,21 +101,27 @@ function backup() {
         borg prune --stats "$repo_path" -d 6 2> >(tee "$stderr_file" >&2)
         if [[ $? -ne 0 ]]; then
             echo "ERROR: borg prune failed for $repo_path" >&2
-            curl -s -H "Title: Backup Error" -H "Priority: high" \
-                --data-binary "@$stderr_file" \
-                "$ntfy_server/$ntfy_topic?title=Prune+failed+for+${backup_name}+on+${local_mount}&filename=error.log" >/dev/null 2>&1
+            error_content=$(cat "$stderr_file")
+            curl -s -H "Title: [$device_name] Prune failed for $backup_name on $local_mount" -H "Priority: high" \
+                -d "$error_content" \
+                "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+            rm -f "$stderr_file"
             continue
         fi
 
         borg compact "$repo_path" 2> >(tee "$stderr_file" >&2)
         if [[ $? -ne 0 ]]; then
             echo "ERROR: borg compact failed for $repo_path" >&2
-            curl -s -H "Title: Backup Error" -H "Priority: high" \
-                --data-binary "@$stderr_file" \
-                "$ntfy_server/$ntfy_topic?title=Compact+failed+for+${backup_name}+on+${local_mount}&filename=error.log" >/dev/null 2>&1
+            error_content=$(cat "$stderr_file")
+            curl -s -H "Title: [$device_name] Compact failed for $backup_name on $local_mount" -H "Priority: high" \
+                -d "$error_content" \
+                "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+            rm -f "$stderr_file"
             continue
         fi
 
+        # All commands succeeded – clean up temp file
+        rm -f "$stderr_file"
         echo "Backup for '$backup_name' completed at $local_mount"
     done
 }
