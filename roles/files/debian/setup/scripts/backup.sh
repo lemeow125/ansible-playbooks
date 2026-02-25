@@ -5,7 +5,7 @@ current_date=$(date "+%B %-d %Y%l:%M %p")
 # Export Borg environment variables
 export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes
 export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
-export device_name="$(hostname 2>/dev/null || echo CHANGE-ME)" # Use hostname, otherwise fall back to "CHANGE-ME"
+export device_name="$(hostname 2>/dev/null || echo CHANGE-ME)" # Use hostname, otherwise fall back to user-set value
 export ntfy_server="https://ntfy.06222001.xyz"
 export ntfy_topic="CHANGE-ME"
 
