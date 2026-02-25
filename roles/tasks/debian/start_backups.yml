@@ -5,4 +5,4 @@
   become: false
   tasks:
     - name: Start Backups
-      command: bash "/root/scripts/backup.sh"
+      command: tmux new-session -d -s "Borg Backups - Ansible" "bash /root/scripts/backup.sh"
