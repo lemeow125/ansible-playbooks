@@ -5,7 +5,7 @@ current_date=$(date "+%B %-d %Y%l:%M %p")
 # Export Borg environment variables
 export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes
 export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
-# export DEVICE_NAME="CHANGE-ME" # Set if device does not support hostname usage
+export device_name="$(hostname 2>/dev/null || echo CHANGE-ME)" # Use hostname, otherwise fall back to "CHANGE-ME"
 export ntfy_server="https://ntfy.06222001.xyz"
 export ntfy_topic="CHANGE-ME"
 
@@ -43,7 +43,6 @@ function backup() {
     # Validate arguments BEFORE shifting
     [[ -z "$1" || -z "$2" ]] && {
         echo "Missing arguments!" >&2
-        local device_name="${DEVICE_NAME:-$(hostname)}"
         curl -s -H "Title: [$device_name] Backup Error" -H "Priority: high" \
             -d "Missing arguments for backup function at $(date)" \
             "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
@@ -54,7 +53,6 @@ function backup() {
     local source_dir="$2"
     shift 2
     local extras=("$@")
-    local device_name="${DEVICE_NAME:-$(hostname)}"
 
     # Iterate through all mount points
     for local_mount in "${mount_points[@]}"; do
