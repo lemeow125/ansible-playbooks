@@ -156,9 +156,9 @@ function backup() {
 }
 
 # --- Load job definitions ---
-if [[ -f "$SCRIPT_DIR/jobs.conf" ]]; then
-    source "$SCRIPT_DIR/jobs.conf"
+if [[ -f "$SCRIPT_DIR/backup_jobs.conf" ]]; then
+    source "$SCRIPT_DIR/backup_jobs.conf"
 else
-    echo "WARNING: jobs.conf not found – no backups will run." >&2
-    notify_error "Config Warning" "jobs.conf missing – no backups executed"
+    echo "WARNING: backup_jobs.conf not found – no backups will run." >&2
+    notify_error "Config Warning" "backup_jobs.conf missing – no backups executed"
 fi
