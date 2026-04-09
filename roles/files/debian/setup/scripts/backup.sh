@@ -8,6 +8,7 @@ export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
 export device_name="CHANGE-ME"
 export ntfy_server="https://ntfy.06222001.xyz"
 export ntfy_topic="CHANGE-ME"
+export parallel_backups=true # Set to False for memory-constrained devices
 
 echo "Timestamp: $current_date"
 
@@ -54,9 +55,10 @@ function backup() {
     shift 2
     local extras=("$@")
 
-    # Iterate through all mount points in parallel
+    # Iterate through all mount points
     for local_mount in "${mount_points[@]}"; do
-        (
+        # Define the job as a function to run either in background or directly
+        run_backup_job() {
             local repo_path="${local_mount}/${backup_name}"
             local stderr_file
 
@@ -75,7 +77,7 @@ function backup() {
                 borg init --encryption=none "$repo_path" 2> >(tee "$stderr_file" >&2)
                 if [[ $? -ne 0 ]]; then
                     echo "ERROR: borg init failed for $repo_path" >&2
-                    cat "$stderr_file" >&2   # <-- surface captured error details
+                    cat "$stderr_file" >&2
                     error_content=$(cat "$stderr_file")
                     curl -s -H "Title: [$device_name] Init failed for $backup_name on $local_mount" -H "Priority: high" \
                         -d "$error_content" \
@@ -129,11 +131,20 @@ function backup() {
             # All commands succeeded – clean up temp file
             rm -f "$stderr_file"
             echo "Backup for '$backup_name' completed at $local_mount"
-        ) &
+        }
+
+        # Run job either in background (parallel) or foreground (sequential)
+        if [[ "$parallel_backups" == "true" ]]; then
+            run_backup_job &
+        else
+            run_backup_job
+        fi
     done
 
-    # Wait for all parallel jobs to finish
-    wait
+    # Wait for all background jobs only if running in parallel mode
+    if [[ "$parallel_backups" == "true" ]]; then
+        wait
+    fi
 }
 
 ## Docker Projects
