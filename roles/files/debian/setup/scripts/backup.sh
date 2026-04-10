@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -53,7 +53,7 @@ export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
 current_date=$(date "+%B %-d %Y %l:%M %p")
 echo "Timestamp: $current_date"
 
-# --- Mount verification (unchanged) ---
+# --- Mount verification ---
 is_mounted() {
     local remote="$1"
     local local_path="$2"
@@ -65,15 +65,85 @@ is_mounted() {
     return 0
 }
 
+all_mounts_ok=true
 for remote in "${!mount_points[@]}"; do
     local_path="${mount_points[$remote]}"
     if ! is_mounted "$remote" "$local_path"; then
-        exit 1
+        all_mounts_ok=false
     fi
 done
 
-# --- Backup function (updated to use notify_error) ---
-function backup() {
+if [[ "$all_mounts_ok" != "true" ]]; then
+    exit 1
+fi
+
+# This function handles the actual Borg logic for a single mount
+run_backup_job() {
+    local backup_name="$1"
+    local source_dir="$2"
+    local local_mount="$3"
+    local extras=("${@:4}")
+
+    local repo_path="${local_mount}/${backup_name}"
+    local stderr_file
+    stderr_file=$(mktemp)
+    
+    if [[ ! -f "$stderr_file" ]]; then
+        echo "ERROR: Failed to create temp file for stderr capture" >&2
+        return 1
+    fi
+
+    echo "Starting backups for '$backup_name' at $local_mount"
+
+    # 1. Init
+    if [[ ! -d "$repo_path" ]]; then
+        echo "Initializing new repository: $repo_path"
+        if ! borg init --encryption=none "$repo_path" 2> >(tee "$stderr_file" >&2); then
+            echo "ERROR: borg init failed for $repo_path" >&2
+            error_content=$(cat "$stderr_file")
+            notify_error "Init failed for $backup_name on $local_mount" "$error_content"
+            rm -f "$stderr_file"
+            return 1
+        fi
+    fi
+
+    # 2. Create
+    echo "Backing up $source_dir to $repo_path"
+    if ! borg create --stats --progress --compression lz4 "$repo_path"::"$current_date" \
+        "$source_dir" "${extras[@]}" 2> >(tee "$stderr_file" >&2); then
+        echo "ERROR: borg create failed for $repo_path" >&2
+        error_content=$(cat "$stderr_file")
+        notify_error "Create failed for $backup_name on $local_mount" "$error_content"
+        rm -f "$stderr_file"
+        return 1
+    fi
+
+    # 3. Prune
+    echo "Cleaning old backups at $repo_path"
+    if ! borg prune --stats "$repo_path" -d 6 2> >(tee "$stderr_file" >&2); then
+        echo "ERROR: borg prune failed for $repo_path" >&2
+        error_content=$(cat "$stderr_file")
+        notify_error "Prune failed for $backup_name on $local_mount" "$error_content"
+        rm -f "$stderr_file"
+        return 1
+    fi
+
+    # 4. Compact
+    if ! borg compact "$repo_path" 2> >(tee "$stderr_file" >&2); then
+        echo "ERROR: borg compact failed for $repo_path" >&2
+        error_content=$(cat "$stderr_file")
+        notify_error "Compact failed for $backup_name on $local_mount" "$error_content"
+        rm -f "$stderr_file"
+        return 1
+    fi
+
+    rm -f "$stderr_file"
+    echo "Backup for '$backup_name' completed at $local_mount"
+    return 0
+}
+
+# --- Main Backup Execution ---
+backup() {
     [[ -z "$1" || -z "$2" ]] && {
         echo "Missing arguments!" >&2
         notify_error "Backup Error" "Missing arguments for backup function at $(date)"
@@ -85,73 +155,28 @@ function backup() {
     shift 2
     local extras=("$@")
 
+    # Loop through all configured mounts
     for local_mount in "${mount_points[@]}"; do
-        run_backup_job() {
-            local repo_path="${local_mount}/${backup_name}"
-            local stderr_file
-            stderr_file=$(mktemp)
-            if [[ ! -f "$stderr_file" ]]; then
-                echo "ERROR: Failed to create temp file for stderr capture" >&2
-                exit 1
-            fi
-
-            echo "Starting backups for '$backup_name' at $local_mount"
-
-            if [[ ! -d "$repo_path" ]]; then
-                echo "Initializing new repository: $repo_path"
-                borg init --encryption=none "$repo_path" 2> >(tee "$stderr_file" >&2)
-                if [[ $? -ne 0 ]]; then
-                    echo "ERROR: borg init failed for $repo_path" >&2
-                    error_content=$(cat "$stderr_file")
-                    notify_error "Init failed for $backup_name on $local_mount" "$error_content"
-                    rm -f "$stderr_file"
-                    exit 1
-                fi
-            fi
-
-            echo "Backing up $source_dir to $repo_path"
-            borg create --stats --progress --compression lz4 "$repo_path"::"$current_date" \
-                "$source_dir" "${extras[@]}" 2> >(tee "$stderr_file" >&2)
-            if [[ $? -ne 0 ]]; then
-                echo "ERROR: borg create failed for $repo_path" >&2
-                error_content=$(cat "$stderr_file")
-                notify_error "Create failed for $backup_name on $local_mount" "$error_content"
-                rm -f "$stderr_file"
-                exit 1
-            fi
-
-            echo "Cleaning old backups at $repo_path"
-            borg prune --stats "$repo_path" -d 6 2> >(tee "$stderr_file" >&2)
-            if [[ $? -ne 0 ]]; then
-                echo "ERROR: borg prune failed for $repo_path" >&2
-                error_content=$(cat "$stderr_file")
-                notify_error "Prune failed for $backup_name on $local_mount" "$error_content"
-                rm -f "$stderr_file"
-                exit 1
-            fi
-
-            borg compact "$repo_path" 2> >(tee "$stderr_file" >&2)
-            if [[ $? -ne 0 ]]; then
-                echo "ERROR: borg compact failed for $repo_path" >&2
-                error_content=$(cat "$stderr_file")
-                notify_error "Compact failed for $backup_name on $local_mount" "$error_content"
-                rm -f "$stderr_file"
-                exit 1
-            fi
-
-            rm -f "$stderr_file"
-            echo "Backup for '$backup_name' completed at $local_mount"
-        }
-
         if [[ "$parallel_backups" == "true" ]]; then
-            run_backup_job &
+            # Run in background
+            run_backup_job "$backup_name" "$source_dir" "$local_mount" "${extras[@]}" &
         else
-            run_backup_job
+            # Run in foreground
+            run_backup_job "$backup_name" "$source_dir" "$local_mount" "${extras[@]}"
         fi
     done
 
+    # --- Parallel Check ---
     if [[ "$parallel_backups" == "true" ]]; then
+        echo "Waiting for all parallel backups to complete..."
         wait
+
+        # Check if any background jobs failed
+        for job in $(jobs -p); do
+            if ! wait "$job"; then
+                echo "ERROR: Background job $job failed!" >&2
+            fi
+        done
     fi
 }
 
