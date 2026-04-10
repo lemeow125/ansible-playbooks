@@ -89,7 +89,9 @@ steps:
       status: [ success, failure ]
       
 when:
-  - branch: master
+  - branch:
+      - master
+      - feat/backup-script-automation
     event:
       - push
       - manual
