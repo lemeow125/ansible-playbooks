@@ -38,6 +38,9 @@ steps:
         ls -la /mnt/
         echo "✓ Mount points and test data created"
       
+      - pwd
+      - ls -la
+      - ls -la roles/files/debian/scripts/ || echo "Directory not found"
       - echo "Running backup script..."
       - |
         [ -f roles/files/debian/scripts/backup.sh ] || { echo "ERROR: backup.sh not found at expected location"; exit 1; }
