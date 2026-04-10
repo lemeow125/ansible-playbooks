@@ -41,6 +41,9 @@ steps:
       - pwd; ls -la
       - cd roles; pwd; ls -la
       - cd files; pwd; ls -la
+      - cd debian; pwd; ls -la
+      - cd setup; pwd; ls -la
+      - cd scripts; pwd; ls -la
       - echo "Running backup script..."
       - |
         [ -f roles/files/debian/setup/scripts/backup.sh ] || { echo "ERROR: backup.sh not found at expected location"; exit 1; }
