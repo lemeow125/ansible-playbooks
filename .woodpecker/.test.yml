@@ -20,14 +20,14 @@ steps:
         sed -i "s/^device_name=.*/device_name=\"$DEVICE_NAME\"/" .env
         sed -i "s/^ntfy_topic=.*/ntfy_topic=\"$NTFY_TOPIC\"/" .env
         sed -i '/^declare -A mount_points=/,/^)/d' .env
-        echo 'declare -A mount_points=(["tmpfs"]="/tmp/backup")' >> .env
+        # Use /dev/shm (already mounted tmpfs) as the backup destination
+        echo 'declare -A mount_points=(["shm"]="/dev/shm")' >> .env
 
-      # Create test directories and mount tmpfs
+      # Create source and backup directories
       - |
-        mkdir -p /tmp/source /tmp/backup
-        mount -t tmpfs tmpfs /tmp/backup
-        echo "Mount status:"
-        findmnt /tmp/backup   # verify mount exists
+        mkdir -p /tmp/source /dev/shm/backup
+        echo "Mount status for /dev/shm:"
+        findmnt /dev/shm   # verify it's a mount point (should be tmpfs)
 
       # Create test data
       - |
@@ -35,20 +35,41 @@ steps:
         echo "Test backup data - $(date)" > /tmp/source/test_data/sample.txt
         ls -la /tmp/
 
-      # Run the backup script (adjust script name if needed)
+      # Run the backup script (adjust script name if necessary)
       - |
         echo "Running backup script..."
         ./backup.sh
 
-      # Verify backup repository was created
+      # Verify backup repository was created under /dev/shm/backup
       - |
         echo "Checking backup repository..."
-        borg list /tmp/backup/* 2>/dev/null || echo "No repository found (may be normal for first run)"
-        ls -la /tmp/backup/
+        borg list /dev/shm/backup/* 2>/dev/null || echo "No repository found (may be normal for first run)"
+        ls -la /dev/shm/backup/
 
-      # Cleanup (unmount tmpfs and remove directories)
-      - umount /tmp/backup || true
-      - rm -rf /tmp/backup /tmp/source
+      # Cleanup (no umount needed, just remove directories)
+      - rm -rf /tmp/source /dev/shm/backup
+      
+  - name: discord
+    image: appleboy/drone-discord
+    settings:
+      webhook_id:
+        from_secret: DISCORD_WEBHOOK_ID
+      webhook_token:
+        from_secret: DISCORD_WEBHOOK_TOKEN
+      message: >
+        {{#success build.status}}
+          ✅ [{{repo.name}}] Successful test for build #{{build.number}}
+          Branch: {{commit.branch}}
+          Commit: {{commit.sha}}:{{commit.message}}
+          By: {{commit.author}}
+        {{else}}
+          ❌ [{{repo.name}}] Failed test for build #{{build.number}}
+          Branch: {{commit.branch}}
+          Commit: {{commit.sha}}:{{commit.message}}
+          By: {{commit.author}}
+        {{/success}}
+    when:
+      status: [ success, failure ]
 
 when:
   - branch:
