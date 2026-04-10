@@ -3,12 +3,6 @@ steps:
     image: alpine:latest
     privileged: true
     environment:
-      PROJECT_DIRECTORY:
-        from_secret: PROJECT_DIRECTORY
-      REGISTRY_IMAGE_TAG:
-        from_secret: REGISTRY_IMAGE_TAG
-      DOCKER_COMPOSE_URL:
-        from_secret: DOCKER_COMPOSE_URL
       DEVICE_NAME: "TEST-NODE"
       NTFY_TOPIC: "CI-TEST"
     volumes:
