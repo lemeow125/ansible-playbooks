@@ -18,6 +18,7 @@ steps:
       - mkdir -p /root/scripts
       - cp -r roles/files/debian/setup/scripts/* /root/scripts/
       - chmod +x /root/scripts/*.sh
+      - ls -la /root/scripts   # Debug: show what was copied
 
       # ------------------------------------------------------------
       # 2. Create mock .env file inside /root/scripts
