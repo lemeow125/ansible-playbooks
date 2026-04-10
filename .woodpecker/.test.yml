@@ -12,6 +12,7 @@ steps:
       - apk add --no-cache bash borgbackup curl jq util-linux
 
       - cd roles/files/debian/setup/scripts
+      - chmod +x *.sh
 
       # Prepare mock .env file
       - |
@@ -38,7 +39,6 @@ steps:
       # Run the backup script (adjust script name if necessary)
       - |
         echo "Running backup script..."
-        chmod +x ./backup.sh
         ./backup.sh
 
       # Verify backup repository was created under /dev/shm/backup
