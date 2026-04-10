@@ -1,0 +1,102 @@
+steps:
+  - name: test backup script
+    image: alpine:latest
+    privileged: true
+    environment:
+      PROJECT_DIRECTORY:
+        from_secret: PROJECT_DIRECTORY
+      REGISTRY_IMAGE_TAG:
+        from_secret: REGISTRY_IMAGE_TAG
+      DOCKER_COMPOSE_URL:
+        from_secret: DOCKER_COMPOSE_URL
+      DEVICE_NAME: "TEST-NODE"
+      NTFY_TOPIC: "CI-TEST"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/cache/apk:/var/cache/apk
+    commands:
+      - set -e
+      - mkdir -p /var/cache/apk && ln -s /var/cache/apk /etc/apk/cache 2>/dev/null || true
+      - apk add --no-cache bash borgbackup curl jq docker-cli
+      - echo "✓ Dependencies installed"
+      
+      - echo "Setting up environment..."
+      - |
+        [ -f .env.sample ] || { echo "ERROR: .env.sample not found"; exit 1; }
+        cp .env.sample .env
+        sed -i 's/^device_name=.*/device_name="$DEVICE_NAME"/' .env
+        sed -i 's/^ntfy_topic=.*/ntfy_topic="$NTFY_TOPIC"/' .env
+        sed -i 's|^mount_points=.*|mount_points="/mnt/backup:/mnt/backup,/mnt/source:/mnt/source"|' .env
+        echo "✓ .env configured for testing"
+      
+      - echo "Creating Docker volume..."
+      - |
+        VOLUME_NAME="backup_test_$(date +%s)"
+        docker volume create "$VOLUME_NAME"
+        echo "✓ Docker volume created: $VOLUME_NAME"
+      
+      - echo "Setting up mount points..."
+      - mkdir -p /mnt/backup /mnt/source
+      - |
+        mkdir -p /mnt/source/test_data
+        echo "Test backup data - $(date)" > /mnt/source/test_data/sample.txt
+        ls -la /mnt/
+        echo "✓ Mount points and test data created"
+      
+      - echo "Running backup script..."
+      - |
+        [ -f roles/files/debian/scripts/backup.sh ] || { echo "ERROR: backup.sh not found at expected location"; exit 1; }
+        chmod +x roles/files/debian/scripts/backup.sh
+        bash roles/files/debian/scripts/backup.sh
+        echo "✓ Backup script executed"
+      
+      - echo "Verifying backup operations..."
+      - |
+        [ -d /mnt/backup ] || { echo "ERROR: Backup directory verification failed"; exit 1; }
+        ls -la /mnt/backup
+        echo "✓ Backup directory verified"
+      
+      - echo "Cleaning up test resources..."
+      - |
+        if mountpoint -q /mnt/backup; then
+          umount /mnt/backup || { echo "ERROR: Failed to unmount /mnt/backup"; exit 1; }
+        fi
+        if mountpoint -q /mnt/source; then
+          umount /mnt/source || { echo "ERROR: Failed to unmount /mnt/source"; exit 1; }
+        fi
+        rm -rf /mnt/backup /mnt/source
+        echo "✓ Mount points cleaned"
+      
+      - |
+        # Find and remove all backup_test volumes
+        docker volume ls --filter name=backup_test | awk 'NR>1 {print $2}' | xargs -r docker volume rm
+        echo "✓ Docker volumes removed"
+
+  - name: discord
+    image: appleboy/drone-discord
+    settings:
+      webhook_id:
+        from_secret: DISCORD_WEBHOOK_ID
+      webhook_token:
+        from_secret: DISCORD_WEBHOOK_TOKEN
+      message: >
+        {{#success build.status}}
+          ✅ [{{repo.name}}] Successful test for build #{{build.number}}
+          Branch: {{commit.branch}}
+          Commit: {{commit.sha}}:{{commit.message}}
+          By: {{commit.author}}
+        {{else}}
+          ❌ [{{repo.name}}] Failed test for build #{{build.number}}
+          Branch: {{commit.branch}}
+          Commit: {{commit.sha}}:{{commit.message}}
+          By: {{commit.author}}
+        {{/success}}
+    when:
+      status: [ success, failure ]
+      
+when:
+  - branch: master
+    event:
+      - push
+      - manual
+
