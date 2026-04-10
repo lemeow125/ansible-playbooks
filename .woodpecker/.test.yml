@@ -8,47 +8,87 @@ steps:
       - /var/cache/apk:/var/cache/apk
     commands:
       - set -e
-      # Install required packages (add util-linux for findmnt)
-      - apk add --no-cache bash borgbackup curl jq util-linux
 
-      - cd roles/files/debian/setup/scripts
-      - chmod +x *.sh
+      # Install required packages (services included for realistic backups)
+      - apk add --no-cache bash borgbackup curl jq util-linux nginx samba syncthing dbus
 
-      # Prepare mock .env file
+      # ------------------------------------------------------------
+      # 1. Prepare the script directory at /root/scripts
+      # ------------------------------------------------------------
+      - mkdir -p /root/scripts
+      - cp -r roles/files/debian/setup/scripts/* /root/scripts/
+      - chmod +x /root/scripts/*.sh
+
+      # ------------------------------------------------------------
+      # 2. Create mock .env file inside /root/scripts
+      # ------------------------------------------------------------
       - |
+        cd /root/scripts
         [ -f .env.sample ] || { echo "ERROR: .env.sample not found"; exit 1; }
         cp .env.sample .env
         sed -i "s/^device_name=.*/device_name=\"$DEVICE_NAME\"/" .env
         sed -i "s/^ntfy_topic=.*/ntfy_topic=\"$NTFY_TOPIC\"/" .env
         sed -i '/^declare -A mount_points=/,/^)/d' .env
-        # Use /dev/shm (already mounted tmpfs) as the backup destination
         echo 'declare -A mount_points=(["shm"]="/dev/shm")' >> .env
 
-      # Create source and backup directories
-      - |
-        mkdir -p /tmp/source /dev/shm/backup
-        echo "Mount status for /dev/shm:"
-        findmnt /dev/shm   # verify it's a mount point (should be tmpfs)
+      # ------------------------------------------------------------
+      # 3. Set up backup destination (tmpfs at /dev/shm)
+      # ------------------------------------------------------------
+      - mkdir -p /dev/shm/backup
+      - echo "Mount status for /dev/shm:"
+      - findmnt /dev/shm
 
-      # Create test data
-      - |
-        mkdir -p /tmp/source/test_data
-        echo "Test backup data - $(date)" > /tmp/source/test_data/sample.txt
-        ls -la /tmp/
+      # ------------------------------------------------------------
+      # 4. Mock backup target directories as defined in backup_jobs.conf
+      # ------------------------------------------------------------
+      # bash-scripts → already at /root/scripts
 
-      # Run the backup script (adjust script name if necessary)
-      - |
-        echo "Running backup script..."
-        ./backup.sh
+      # acme
+      - mkdir -p /root/.acme.sh
+      - echo "dummy acme data" > /root/.acme.sh/account.conf
 
-      # Verify backup repository was created under /dev/shm/backup
+      # cron
+      - mkdir -p /var/spool/cron/crontabs
+      - echo "* * * * * echo test" > /var/spool/cron/crontabs/root
+
+      # nginx
+      - mkdir -p /etc/nginx
+      - echo "events {} http { server { listen 80; } }" > /etc/nginx/nginx.conf
+
+      # syncthing
+      - mkdir -p /root/.config/syncthing
+      - echo "<configuration></configuration>" > /root/.config/syncthing/config.xml
+
+      # samba
+      - mkdir -p /etc/samba
+      - echo "[global]" > /etc/samba/smb.conf
+      - echo "   workgroup = WORKGROUP" >> /etc/samba/smb.conf
+
+      # samba_credentials
+      - mkdir -p /root/.samba
+      - cp -r roles/files/debian/samba/* /root/.samba/ 2>/dev/null || echo "No samba credentials directory; creating dummy file"
+      - touch /root/.samba/credentials
+
+      # ------------------------------------------------------------
+      # 6. Run the backup script from /root/scripts
+      # ------------------------------------------------------------
+      - echo "Running backup script..."
+      - cd /root/scripts && ./backup.sh
+
+      # ------------------------------------------------------------
+      # 7. Verify backup repositories were created
+      # ------------------------------------------------------------
       - |
-        echo "Checking backup repository..."
-        borg list /dev/shm/backup/* 2>/dev/null || echo "No repository found (may be normal for first run)"
+        echo "Checking backup repositories..."
+        for repo in bash-scripts acme cron nginx syncthing samba samba_credentials; do
+          if [ -d "/dev/shm/backup/$repo" ]; then
+            echo "Repository $repo exists. Listing archives:"
+            borg list "/dev/shm/backup/$repo" 2>/dev/null || echo "  (empty or error)"
+          else
+            echo "Repository $repo not found"
+          fi
+        done
         ls -la /dev/shm/backup/
-
-      # Cleanup (no umount needed, just remove directories)
-      - rm -rf /tmp/source /dev/shm/backup
 
   - name: discord
     image: appleboy/drone-discord
