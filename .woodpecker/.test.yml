@@ -44,7 +44,7 @@ steps:
 
       # Cleanup
       - rm -rf /tmp/backup /tmp/source
-      
+
   - name: discord
     image: appleboy/drone-discord
     settings:
