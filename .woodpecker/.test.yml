@@ -38,6 +38,7 @@ steps:
       # Run the backup script (adjust script name if necessary)
       - |
         echo "Running backup script..."
+        chmod +x ./backup.sh
         ./backup.sh
 
       # Verify backup repository was created under /dev/shm/backup
@@ -48,7 +49,7 @@ steps:
 
       # Cleanup (no umount needed, just remove directories)
       - rm -rf /tmp/source /dev/shm/backup
-      
+
   - name: discord
     image: appleboy/drone-discord
     settings:
