@@ -22,11 +22,12 @@ steps:
         sed -i '/^declare -A mount_points=/,/^)/d' .env
         echo 'declare -A mount_points=(["/tmp/source"]="/tmp/backup")' >> .env
 
-      # Create test directory
+      # Create test directories and bind mount
       - |
         mkdir -p /tmp/backup /tmp/source
         mkdir -p /tmp/source/test_data
         echo "Test backup data - $(date)" > /tmp/source/test_data/sample.txt
+        mount --bind /tmp/source /tmp/backup
         ls -la /tmp/
 
       # Run backup script
@@ -39,7 +40,10 @@ steps:
         [ -d /tmp/backup ] || { echo "ERROR: Backup directory verification failed"; exit 1; }
         ls -la /tmp/backup
 
-      - rm -rf /tmp/backup /tmp/source
+      # Cleanup (unmount first, then remove directories)
+      - |
+        umount /tmp/backup || true
+        rm -rf /tmp/backup /tmp/source
 
   - name: discord
     image: appleboy/drone-discord
