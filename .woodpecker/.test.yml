@@ -13,14 +13,14 @@ steps:
 
       - cd roles/files/debian/setup/scripts
 
-      # Set up .env
+      # Mock .env
       - |
         [ -f .env.sample ] || { echo "ERROR: .env.sample not found"; exit 1; }
         cp .env.sample .env
         sed -i 's/^device_name=.*/device_name="$DEVICE_NAME"/' .env
         sed -i 's/^ntfy_topic=.*/ntfy_topic="$NTFY_TOPIC"/' .env
-        sed -i 's|^mount_points=.*|mount_points="/tmp/backup:/tmp/backup,/tmp/source:/tmp/source"|' .env
-        echo "✓ .env configured for testing"
+        sed -i '/^declare -A mount_points=/,/^)/d' .env
+        echo 'declare -A mount_points=(["/tmp/source"]="/tmp/backup")' >> .env
 
       # Create test directory
       - |
@@ -28,19 +28,16 @@ steps:
         mkdir -p /tmp/source/test_data
         echo "Test backup data - $(date)" > /tmp/source/test_data/sample.txt
         ls -la /tmp/
-        echo "✓ Test directories and data created"
 
       # Run backup script
       - |
         chmod +x backup.sh
         ./backup.sh
-        echo "✓ Backup script executed"
 
       # Verify
       - |
         [ -d /tmp/backup ] || { echo "ERROR: Backup directory verification failed"; exit 1; }
         ls -la /tmp/backup
-        echo "✓ Backup directory verified"
 
       - rm -rf /tmp/backup /tmp/source
 
