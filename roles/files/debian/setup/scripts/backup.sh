@@ -4,10 +4,10 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # --- Load configuration ---
-if [[ -f "$SCRIPT_DIR/config.env" ]]; then
-    source "$SCRIPT_DIR/config.env"
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    source "$SCRIPT_DIR/.env"
 else
-    echo "ERROR: config.env not found in $SCRIPT_DIR" >&2
+    echo "ERROR: .env not found in $SCRIPT_DIR" >&2
     exit 1
 fi
 

@@ -5,16 +5,15 @@ steps:
       DEVICE_NAME: "TEST-NODE"
       NTFY_TOPIC: "CI-TEST"
     volumes:
-      - /var/cache/apk:/var/cache/apk   # optional, speeds up package installs
+      - /var/cache/apk:/var/cache/apk
     commands:
       - set -e
       - mkdir -p /var/cache/apk && ln -s /var/cache/apk /etc/apk/cache 2>/dev/null || true
       - apk add --no-cache bash borgbackup curl jq
-      - echo "Setting up environment..."
 
-      # Scripts directory
       - cd roles/files/debian/setup/scripts
 
+      # Set up .env
       - |
         [ -f .env.sample ] || { echo "ERROR: .env.sample not found"; exit 1; }
         cp .env.sample .env
@@ -23,7 +22,7 @@ steps:
         sed -i 's|^mount_points=.*|mount_points="/tmp/backup:/tmp/backup,/tmp/source:/tmp/source"|' .env
         echo "✓ .env configured for testing"
 
-      - echo "Creating test directories in /tmp..."
+      # Create test directory
       - |
         mkdir -p /tmp/backup /tmp/source
         mkdir -p /tmp/source/test_data
@@ -31,22 +30,19 @@ steps:
         ls -la /tmp/
         echo "✓ Test directories and data created"
 
-      - echo "Running backup script..."
+      # Run backup script
       - |
         chmod +x backup.sh
         ./backup.sh
         echo "✓ Backup script executed"
 
-      - echo "Verifying backup operations..."
+      # Verify
       - |
         [ -d /tmp/backup ] || { echo "ERROR: Backup directory verification failed"; exit 1; }
         ls -la /tmp/backup
         echo "✓ Backup directory verified"
 
-      - echo "Cleaning up test resources..."
-      - |
-        rm -rf /tmp/backup /tmp/source
-        echo "✓ Temporary directories cleaned"
+      - rm -rf /tmp/backup /tmp/source
 
   - name: discord
     image: appleboy/drone-discord
