@@ -16,8 +16,9 @@ steps:
       
       - echo "Setting up environment..."
       - |
-        [ -f .env.sample ] || { echo "ERROR: .env.sample not found"; exit 1; }
-        cp .env.sample .env
+        ENV_SAMPLE="roles/files/debian/setup/scripts/.env.sample"
+        [ -f "$ENV_SAMPLE" ] || { echo "ERROR: .env.sample not found at $ENV_SAMPLE"; exit 1; }
+        cp "$ENV_SAMPLE" .env
         sed -i 's/^device_name=.*/device_name="$DEVICE_NAME"/' .env
         sed -i 's/^ntfy_topic=.*/ntfy_topic="$NTFY_TOPIC"/' .env
         sed -i 's|^mount_points=.*|mount_points="/mnt/backup:/mnt/backup,/mnt/source:/mnt/source"|' .env
