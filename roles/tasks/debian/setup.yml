@@ -14,7 +14,7 @@
       authorized_key:
         user: root
         state: present
-        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+        key: "{{ lookup('file', '/mnt/c/Users/keannu125/.ssh/id_rsa.pub') }}"
         path: ~/.ssh/authorized_keys
     - name: Enable Root Login
       lineinfile:
@@ -35,7 +35,7 @@
         update_cache: false
         autoremove: true
         state: latest
-      # Safety net if this script is ran twice
+      Safety net if this script is ran twice
       notify: Restart Docker Containers
     - name: Install packages - Debian
       apt:
