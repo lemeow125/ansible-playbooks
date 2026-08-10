@@ -169,13 +169,13 @@ backup() {
 docker_projects="/mnt/nvme/files/docker projects"
 
 # --- Docker projects ---
-# backup "sample" "$docker_projects/sample" --targets backups_a backups_b
+# backup "sample" "$docker_projects/sample" --targets backups_a backups_b backups_c
 
 # --- Non-docker directories ---
-backup "bash-scripts" "/root/scripts" --targets backups_a backups_b
-backup "acme" "/root/.acme.sh" --targets backups_a backups_b
-backup "cron" "/var/spool/cron/crontabs" --targets backups_a backups_b
-backup "nginx" "/etc/nginx" --targets backups_a backups_b
-backup "syncthing" "/root/.config/syncthing" --targets backups_a backups_b
-backup "samba" "/etc/samba" --targets backups_a backups_b
-backup "samba_credentials" "/root/.samba" --targets backups_a backups_b
+backup "bash-scripts" "/root/scripts" --targets backups_a backups_b backups_c
+backup "acme" "/root/.acme.sh" --targets backups_a backups_b backups_c
+backup "cron" "/var/spool/cron/crontabs" --targets backups_a backups_b backups_c
+backup "nginx" "/etc/nginx" --targets backups_a backups_b backups_c
+backup "syncthing" "/root/.config/syncthing" --targets backups_a backups_b backups_c
+backup "samba" "/etc/samba" --targets backups_a backups_b backups_c
+backup "samba_credentials" "/root/.samba" --targets backups_a backups_b backups_c
