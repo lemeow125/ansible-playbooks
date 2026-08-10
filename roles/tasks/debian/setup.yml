@@ -3,19 +3,24 @@
     - debian
   become: true
   vars_files: "{{ playbook_dir | dirname | dirname | dirname }}/inventory/group_vars/debian.yml"
+
   tasks:
-    # Ensure SSH directory exists
+    # ------------------------------------------------------------------
+    # SSH & System Setup
+    # ------------------------------------------------------------------
     - name: Ensure SSH directory exists
       file:
         path: ~/.ssh/
         state: directory
         mode: "0700"
+
     - name: Add SSH key to authorized_hosts - Debian
       authorized_key:
         user: root
         state: present
         key: "{{ lookup('file', '/mnt/c/Users/keannu125/.ssh/id_rsa.pub') }}"
         path: ~/.ssh/authorized_keys
+
     - name: Enable Root Login
       lineinfile:
         dest: /etc/ssh/sshd_config
@@ -23,20 +28,110 @@
         line: "PermitRootLogin yes"
         state: present
       notify: Restart SSHD on Config Change
+
+    # ------------------------------------------------------------------
+    # CRITICAL: Remove any existing (wrong) Docker repositories
+    # ------------------------------------------------------------------
+    - name: Remove any existing Docker repository (Ubuntu variant)
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: absent
+      ignore_errors: true
+
+    - name: Remove any existing Docker repository (Debian variant – old style)
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: absent
+      ignore_errors: true
+
+    # Now we can safely update apt cache
     - name: Update all packages
       apt:
         update_cache: true
         autoremove: true
         state: latest
-    - name: Install Docker
+
+    # ------------------------------------------------------------------
+    # Docker Installation (Official Repository, signed by key)
+    # ------------------------------------------------------------------
+    - name: Install dependencies for Docker repo
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: false   # cache already updated
+
+    - name: Ensure keyrings directory exists
+      file:
+        path: /usr/share/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker GPG key using curl (bypass Python HTTPS issue)
+      shell:
+        cmd: curl -fsSL https://download.docker.com/linux/debian/gpg -o /usr/share/keyrings/docker-archive-keyring.gpg
+        creates: /usr/share/keyrings/docker-archive-keyring.gpg
+
+    - name: Add Docker repository with signed-by (use bookworm if trixie)
+      apt_repository:
+        repo: >-
+          deb [arch=amd64
+          signed-by=/usr/share/keyrings/docker-archive-keyring.gpg]
+          https://download.docker.com/linux/debian
+          {{ 'bookworm' if ansible_distribution_release == 'trixie' else ansible_distribution_release }}
+          stable
+        state: present
+
+    - name: Update apt cache after adding Docker repo
+      apt:
+        update_cache: yes
+
+    # ------------------------------------------------------------------
+    # REMOVE CONFLICTING DEBIAN DOCKER PACKAGES
+    # ------------------------------------------------------------------
+    - name: Remove conflicting Docker-related packages from Debian repositories
       apt:
         name:
           - docker
-        update_cache: false
-        autoremove: true
+          - docker.io
+          - docker-cli
+          - docker-buildx
+          - docker-compose
+          - docker-engine
+        state: absent
+        purge: yes
+        autoremove: yes
+
+    # ------------------------------------------------------------------
+    # Install Official Docker CE
+    # ------------------------------------------------------------------
+    - name: Install Docker packages
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
         state: latest
-      Safety net if this script is ran twice
       notify: Restart Docker Containers
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Install Docker Compose plugin
+      apt:
+        name: docker-compose-plugin
+        state: latest
+
+    # ------------------------------------------------------------------
+    # Additional Packages (without docker-compose)
+    # ------------------------------------------------------------------
     - name: Install packages - Debian
       apt:
         name:
@@ -45,8 +140,7 @@
           - htop
           - tmux
           - samba
-          - docker-compose
-          - neofetch
+          - fastfetch
           - cifs-utils
           - borgbackup
           - curl
@@ -56,50 +150,110 @@
           - fish
           - iperf3
           - dnsmasq
-        # Cache is already updated from previous step
         update_cache: false
         autoremove: true
         state: latest
+
+    # ------------------------------------------------------------------
+    # ACME Setup
+    # ------------------------------------------------------------------
     - name: Install ACME
       shell: curl https://get.acme.sh | sh -s email="{{ ACME_EMAIL }}"
+
     - name: Ensure ACME directory exists
       file:
         path: ~/.acme.sh/.ssh/
         state: directory
         mode: "0700"
+
+    # ------------------------------------------------------------------
+    # Syncthing Setup – compatible with both legacy and new config paths
+    # ------------------------------------------------------------------
     - name: Enable Syncthing Service
       command: systemctl enable syncthing@root.service
+
     - name: Start Syncthing Service
       command: systemctl start syncthing@root.service
+
+    # Wait for config to be generated (either location)
+    - name: Wait for Syncthing config file (legacy path)
+      wait_for:
+        path: /root/.config/syncthing/config.xml
+        state: present
+        timeout: 30
+      ignore_errors: yes
+      register: legacy_config_wait
+
+    - name: Wait for Syncthing config file (new path)
+      wait_for:
+        path: /root/.local/state/syncthing/config.xml
+        state: present
+        timeout: 30
+      ignore_errors: yes
+      register: new_config_wait
+
+    # Stat both locations to be certain
+    - name: Stat legacy Syncthing config
+      stat:
+        path: /root/.config/syncthing/config.xml
+      register: legacy_config_stat
+
+    - name: Stat new Syncthing config
+      stat:
+        path: /root/.local/state/syncthing/config.xml
+      register: new_config_stat
+
+    # If neither exists, generate a fresh config (new location)
+    - name: Generate Syncthing config if missing
+      command: syncthing --generate=/root/.local/state/syncthing
+      args:
+        creates: /root/.local/state/syncthing/config.xml
+      when: not (legacy_config_stat.stat.exists or new_config_stat.stat.exists)
+
+    # Set the actual config path for use in subsequent tasks
+    - name: Determine Syncthing config path
+      set_fact:
+        syncthing_config_path: "{{ '/root/.config/syncthing/config.xml' if legacy_config_stat.stat.exists else '/root/.local/state/syncthing/config.xml' }}"
+      when: legacy_config_stat.stat.exists or new_config_stat.stat.exists
+
     - name: Allow Syncthing Remote Management
       replace:
-        path: /root/.config/syncthing/config.xml
-        regexp: "<address>127.0.0.1:8384</address>"
-        replace: "<address>0.0.0.0:8384</address>"
+        path: "{{ syncthing_config_path }}"
+        regexp: '<address>127.0.0.1:8384</address>'
+        replace: '<address>0.0.0.0:8384</address>'
       notify: Restart Syncthing Service
+      when: syncthing_config_path is defined
+
+    # ------------------------------------------------------------------
+    # Configuration Files & Mount Points
+    # ------------------------------------------------------------------
     - name: Copy Template Scripts
       copy:
         src: "{{ playbook_dir | dirname | dirname }}/files/debian/setup/scripts/"
         dest: /root/scripts/
         mode: "0644"
         force: false
+
     - name: Copy Crontab Template
       copy:
         src: "{{ playbook_dir | dirname | dirname }}/files/debian/setup/crontabs/"
         dest: /var/spool/cron/crontabs/
         mode: "0600"
         force: false
+
     - name: Copy Samba Credentials Template
       copy:
         src: "{{ playbook_dir | dirname | dirname }}/files/debian/setup/samba/"
         dest: /root/.samba/
         mode: "0644"
         force: false
+
     - name: Ensure mount directory for backups_a exists
       file:
         path: /mnt/backups_a/
         state: directory
         mode: "0700"
+
     - name: Ensure mount directory for backups_b exists
       file:
         path: /mnt/backups_b/
@@ -107,12 +261,11 @@
         mode: "0700"
 
   handlers:
-    # Restart Syncthing on Config Change
     - name: Restart Syncthing Service
       command: systemctl restart syncthing@root.service
-    # Restart SSHD on Config Change
+
     - name: Restart SSHD on Config Change
       command: systemctl restart sshd
-    # Restart Docker Containers on Docker Update
+
     - name: Restart Docker Containers
       command: bash "/root/scripts/start_services.sh"

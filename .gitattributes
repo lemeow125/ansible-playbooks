@@ -1,0 +1,7 @@
+# Force all shell scripts to use LF (Unix) line endings
+*.sh text eol=lf
+
+# Optional: Force YAML and Python too, for safety
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
