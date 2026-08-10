@@ -15,28 +15,10 @@ echo "Timestamp: $current_date"
 # Destination registry – friendly name → local_path|remote_source
 # ----------------------------------------------------------------------
 declare -A DESTINATIONS=(
-    [backups_a]="/mnt/backups_a|//10.0.10.169/pc-2"
-    [backups_b]="/mnt/backups_b|//10.0.10.115/pc-2"
+    [backups_a]="/mnt/external/backups_a|//10.0.10.169/CHANGE-ME"
+    [backups_b]="/mnt/external/backups_b|//10.0.10.115/CHANGE-ME"
+    [backups_c]="/mnt/external/backups_c|//10.0.10.222/CHANGE-ME"
 )
-
-# ----------------------------------------------------------------------
-# Verify all defined destinations are mounted
-# ----------------------------------------------------------------------
-check_mounts() {
-    local name local_path remote
-    for name in "${!DESTINATIONS[@]}"; do
-        IFS='|' read -r local_path remote <<< "${DESTINATIONS[$name]}"
-        if ! findmnt --target "$local_path" --source "$remote" &>/dev/null; then
-            echo "Error: $name ($remote) not mounted at $local_path"
-            curl -s -H "Title: [$device_name] Backup Error" -H "Priority: high" \
-                -d "$name ($remote) not mounted at $local_path $(date)" \
-                "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
-            exit 1
-        fi
-    done
-    echo "All destinations verified."
-}
-check_mounts
 
 # ----------------------------------------------------------------------
 # Backup function – now expects --targets list
@@ -60,7 +42,6 @@ backup() {
         case "$1" in
             --targets)
                 shift
-                # Collect targets until next option or end
                 while [[ $# -gt 0 && "$1" != "--" ]]; do
                     targets+=("$1")
                     shift
@@ -72,7 +53,6 @@ backup() {
                 break
                 ;;
             *)
-                # If we hit something unexpected before --, it's an error
                 echo "ERROR: Unexpected argument '$1' in backup call" >&2
                 exit 1
                 ;;
@@ -93,9 +73,22 @@ backup() {
             exit 1
         fi
 
-        IFS='|' read -r local_mount _ <<< "${DESTINATIONS[$target]}"
+        # Extract mount information
+        IFS='|' read -r local_mount remote <<< "${DESTINATIONS[$target]}"
+
+        # --- Only check mount for this specific target ---
+        if ! findmnt --target "$local_mount" --source "$remote" &>/dev/null; then
+            echo "Error: $target ($remote) not mounted at $local_mount – skipping backup '$backup_name' for this target"
+            curl -s -H "Title: [$device_name] Backup Error" \
+                 -H "Priority: high" \
+                 -d "$target ($remote) not mounted at $local_mount – backup '$backup_name' skipped $(date)" \
+                 "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+            continue   # skip this target, do not abort the whole script
+        fi
+
         local repo_path="${local_mount}/${backup_name}"
 
+        # Start the backup job for this target in the background
         (
             local stderr_file
             stderr_file=$(mktemp)

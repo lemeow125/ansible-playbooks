@@ -150,6 +150,7 @@
           - fish
           - iperf3
           - dnsmasq
+          - autofs
         update_cache: false
         autoremove: true
         state: latest
