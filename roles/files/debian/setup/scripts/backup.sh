@@ -76,6 +76,16 @@ backup() {
         # Extract mount information
         IFS='|' read -r local_mount remote <<< "${DESTINATIONS[$target]}"
 
+        # Enable this block if you are not using autofs
+        # if ! findmnt --target "$local_mount" --source "$remote" &>/dev/null; then
+        #     echo "Error: $target ($remote) not mounted at $local_mount – skipping backup '$backup_name' for this target"
+        #     curl -s -H "Title: [$device_name] Backup Error" \
+        #          -H "Priority: high" \
+        #          -d "$target ($remote) not mounted at $local_mount – backup '$backup_name' skipped $(date)" \
+        #          "$ntfy_server/$ntfy_topic" >/dev/null 2>&1
+        #     continue   # skip this target, do not abort the whole script
+        # fi
+
         local repo_path="${local_mount}/${backup_name}"
 
         # Start the backup job for this target in the background

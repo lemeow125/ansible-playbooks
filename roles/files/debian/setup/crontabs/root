@@ -6,8 +6,9 @@
 @reboot tmux
 
 # Network mount
-* * * * * sudo mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups_a/" -o credentials="/root/.samba/credentials"
-* * * * * sudo mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups_b/" -o credentials="/root/.samba/credentials"
+# Omitted by default, set up via autofs instead
+# * * * * * sudo mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups_a/" -o credentials="/root/.samba/credentials"
+# * * * * * sudo mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups_b/" -o credentials="/root/.samba/credentials"
 
 # Start services
 @reboot sleep 30 && tmux new-session -d -s "start_services" "bash /root/scripts/start_services.sh"
