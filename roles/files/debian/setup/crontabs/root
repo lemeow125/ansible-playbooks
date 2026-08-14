@@ -7,18 +7,21 @@
 
 # Network mount
 # Omitted by default, set up via autofs instead
-# * * * * * sudo mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups_a/" -o credentials="/root/.samba/credentials"
-# * * * * * sudo mount.cifs "//255.255.255.0/SAMBA-MOUNT" "/mnt/backups_b/" -o credentials="/root/.samba/credentials"
+# * * * * * sudo mount.cifs "//10.0.10.169/SAMBA-MOUNT" "/mnt/backups_a/" -o credentials="/root/.samba/credentials" > /dev/null 2>&1
+# * * * * * sudo mount.cifs "//10.0.10.115/SAMBA-MOUNT" "/mnt/backups_b/" -o credentials="/root/.samba/credentials" > /dev/null 2>&1
+# * * * * * sudo mount.cifs "//10.0.10.222/SAMBA-MOUNT" "/mnt/backups_c/" -o credentials="/root/.samba/credentials" > /dev/null 2>&1
 
 # Start services
 @reboot sleep 30 && tmux new-session -d -s "start_services" "bash /root/scripts/start_services.sh"
 
 # Backups
 0 */4 * * * tmux new-session -d -s "Borg Backups" "bash /root/scripts/backup.sh"
+# Backups Verify
+30 2 1 * * tmux new-session -d -s "Borg Backup Verification" "bash /root/scripts/backup_verify.sh"
 
 # Docker Cleanup
 0 0 1 * *  docker system prune --all --volumes --force
 
 # ACME
-52 0 * * * "/root/.acme.sh"/acme.sh --cron --home "/root/.acme.sh" > /dev/null
+52 0 * * * "/root/.acme.sh"/acme.sh --cron --home "/root/.acme.sh" > /dev/null 2>&1
 0 */7 * * * tmux new-session -d -s "Acme SSL Updater" "bash /root/scripts/acme_ssl.sh"
