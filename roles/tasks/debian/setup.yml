@@ -30,7 +30,21 @@
       notify: Restart SSHD on Config Change
 
     # ------------------------------------------------------------------
-    # CRITICAL: Remove any existing (wrong) Docker repositories
+    # Docker Installation (Official Repository, signed by key)
+    # ------------------------------------------------------------------
+    - name: Install dependencies for Docker repo
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: false   # cache already updated
+
+    # ------------------------------------------------------------------
+    # Remove any existing Docker repositories
     # ------------------------------------------------------------------
     - name: Remove any existing Docker repository (Ubuntu variant)
       apt_repository:
@@ -50,20 +64,6 @@
         update_cache: true
         autoremove: true
         state: latest
-
-    # ------------------------------------------------------------------
-    # Docker Installation (Official Repository, signed by key)
-    # ------------------------------------------------------------------
-    - name: Install dependencies for Docker repo
-      apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - gnupg
-          - lsb-release
-        state: present
-        update_cache: false   # cache already updated
 
     - name: Ensure keyrings directory exists
       file:
@@ -151,6 +151,8 @@
           - iperf3
           - dnsmasq
           - autofs
+          - zram-tools
+          - smartmontools
         update_cache: false
         autoremove: true
         state: latest
