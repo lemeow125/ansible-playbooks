@@ -44,14 +44,8 @@
         update_cache: false   # cache already updated
 
     # ------------------------------------------------------------------
-    # Remove any existing Docker repositories
+    # Remove existing Docker repositories
     # ------------------------------------------------------------------
-    - name: Remove any existing Docker repository (Ubuntu variant)
-      apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        state: absent
-      ignore_errors: true
-
     - name: Remove any existing Docker repository (Debian variant – old style)
       apt_repository:
         repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"

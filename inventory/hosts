@@ -7,4 +7,5 @@
 # 10.0.10.141 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
 # 10.0.10.115 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
 # 10.0.10.142 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
-10.0.10.222 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
+# 10.0.10.222 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
+10.0.10.156 ansible_ssh_common_args="-o StrictHostKeyChecking=no"
